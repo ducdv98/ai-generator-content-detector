@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Content Detector</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1c1b19; --muted: #6b675f; --line: #e2dfd6;
+    --accent: #2f5d50; --accent-ink: #ffffff;
+    --ai: #b3402a; --ai-bg: #fbeae5; --ok: #2f6b3f; --ok-bg: #e6f2e8;
+    --warn: #8a6410; --warn-bg: #fbf1d6; --neutral-bg: #efede6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151614; --panel: #1f201d; --ink: #ecebe6; --muted: #a3a097; --line: #34352f;
+      --accent: #7fc0aa; --accent-ink: #10201b;
+      --ai: #f0937e; --ai-bg: #3a211b; --ok: #8fd09d; --ok-bg: #1c2e20;
+      --warn: #e6c36a; --warn-bg: #33290f; --neutral-bg: #2a2b27;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 24px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .tabs button { background: none; border: 0; padding: 10px 14px; font: inherit; color: var(--muted);
+                 cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 28px 16px; text-align: center;
+          color: var(--muted); cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop.over, .drop:hover, .drop:focus-visible { border-color: var(--accent); background: var(--neutral-bg); outline: none; }
+  .drop strong { color: var(--ink); }
+  input[type=file] { display: none; }
+  .row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-top: 14px; }
+  label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=text] { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+                     background: var(--bg); color: var(--ink); width: 150px; font-family: ui-monospace, monospace; }
+  .btn { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; cursor: pointer;
+         background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .result { margin-top: 20px; }
+  .verdict { border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .verdict h2 { margin: 0 0 4px; font-size: 1.3rem; }
+  .verdict p { margin: 0; }
+  .verdict .conf { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .v-ai { background: var(--ai-bg); } .v-ai h2, .v-ai .conf { color: var(--ai); }
+  .v-ok { background: var(--ok-bg); } .v-ok h2, .v-ok .conf { color: var(--ok); }
+  .v-warn { background: var(--warn-bg); } .v-warn h2, .v-warn .conf { color: var(--warn); }
+  .v-none { background: var(--neutral-bg); } .v-none .conf { color: var(--muted); }
+  .preview { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; color: var(--muted); font-size: .9rem; }
+  .preview img { max-width: 120px; max-height: 90px; border-radius: 6px; border: 1px solid var(--line); }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 18px 0 6px; }
+  .ev { border-top: 1px solid var(--line); padding: 10px 0; display: grid; grid-template-columns: 22px 1fr; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; background: var(--line); }
+  .dot.ai { background: var(--ai); } .dot.not_ai { background: var(--ok); }
+  .ev b { display: block; }
+  .ev span { color: var(--muted); font-size: .93rem; }
+  .ev .tag { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px;
+             margin-left: 6px; color: var(--muted); font-weight: 400; vertical-align: 1px; }
+  details { margin-top: 4px; } summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+        overflow-x: auto; font-size: .8rem; margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  .pair figure { margin: 0; } .pair img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; }
+  .pair figcaption { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+  th, td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .yes { color: var(--ok); font-weight: 600; } .no { color: var(--ai); font-weight: 600; }
+  .note { color: var(--muted); font-size: .9rem; }
+  .err { color: var(--ai); margin-top: 12px; }
+  .hidden { display: none; }
+  .scroll { overflow-x: auto; }
+  @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } .panel { padding: 14px; } th, td { padding: 6px 4px; font-size: .85rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>AI Content Detector</h1>
+  <p class="lede">Checks an image the way social platforms do: what the file declares, which known watermarks it carries, and, if nothing else is found, what a classifier guesses. <a href="/text" style="color:var(--accent)">Text watermark lab</a> · <a href="/image" style="color:var(--accent)">Image watermark lab</a> · <a href="/video" style="color:var(--accent)">Video watermark lab</a> · <a href="/audio" style="color:var(--accent)">Audio watermark lab</a></p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-detect" aria-selected="true" aria-controls="p-detect">Detect</button>
+    <button role="tab" id="tab-sign" aria-selected="false" aria-controls="p-sign">Sign and verify</button>
+  </div>
+
+  <section id="p-detect" class="panel" role="tabpanel" aria-labelledby="tab-detect">
+    <div class="drop" id="drop-detect" tabindex="0" role="button">
+      <strong>Drop an image here</strong> or click to choose one<br>
+      <small>JPEG, PNG or WebP. Upload the original file; screenshots lose their metadata.</small>
+    </div>
+    <input type="file" id="file-detect" accept="image/*">
+    <div class="err hidden" id="err-detect" role="alert"></div>
+    <div class="result" id="res-detect" aria-live="polite"></div>
+  </section>
+
+  <section id="p-sign" class="panel hidden" role="tabpanel" aria-labelledby="tab-sign">
+    <p class="note" style="margin-top:0">Embeds an invisible, keyed watermark carrying a 32-bit ID, then edits the signed image in common ways and checks whether the mark survives. This is how AI generators can mark their output so that it stays detectable after the metadata is gone.</p>
+    <div class="drop" id="drop-sign" tabindex="0" role="button">
+      <strong>Drop an image to sign</strong> or click to choose one
+    </div>
+    <input type="file" id="file-sign" accept="image/*">
+    <div class="row">
+      <div><label for="payload">Payload ID (up to 8 hex digits)</label>
+        <input type="text" id="payload" value="C0FFEE42" maxlength="10" spellcheck="false"></div>
+      <button class="btn" id="btn-sign" disabled>Sign image</button>
+    </div>
+    <div class="err hidden" id="err-sign" role="alert"></div>
+    <div class="result" id="res-sign" aria-live="polite"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Tabs
+for (const name of ['detect', 'sign']) {
+  $('tab-' + name).addEventListener('click', () => {
+    for (const n of ['detect', 'sign']) {
+      $('tab-' + n).setAttribute('aria-selected', n === name);
+      $('p-' + n).classList.toggle('hidden', n !== name);
+    }
+  });
+}
+
+// Drop zones
+function wireDrop(name, onFile) {
+  const drop = $('drop-' + name), input = $('file-' + name);
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); input.value = ''; });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('over');
+    if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+  });
+}
+
+async function post(url, file, extra) {
+  const fd = new FormData();
+  fd.append('file', file);
+  for (const [k, v] of Object.entries(extra || {})) fd.append(k, v);
+  const r = await fetch(url, { method: 'POST', body: fd });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || ('Request failed (' + r.status + ')'));
+  return body;
+}
+
+function showError(name, msg) {
+  const el = $('err-' + name);
+  el.textContent = msg || '';
+  el.classList.toggle('hidden', !msg);
+}
+
+// ---- Detect
+const CONF = { declared: 'Declared by the file', high: 'High confidence',
+               probabilistic: 'Statistical estimate', none: 'No decisive evidence' };
+const LAYERS = { provenance: '1. Provenance metadata', watermark: '2. Invisible watermarks',
+                 classifier: '3. Forensic classifier' };
+const STRENGTH = { declared: 'signed declaration', strong: 'strong', statistical: 'statistical', weak: 'weak' };
+
+function verdictClass(rep) {
+  if (rep.verdict.startsWith('AI-generated') || rep.verdict.startsWith('Likely AI')) return 'v-ai';
+  if (rep.verdict.startsWith('Likely not')) return 'v-ok';
+  if (rep.verdict.startsWith('Possibly') || rep.verdict === 'Inconclusive') return 'v-warn';
+  return 'v-none';
+}
+
+function renderReport(rep, thumbUrl) {
+  let html = `<div class="preview"><img src="${thumbUrl}" alt="">
+    <div>${esc(rep.file.name || 'image')}<br>${esc(rep.file.format || '')} · ${rep.file.width}×${rep.file.height} · ${(rep.file.bytes / 1024).toFixed(0)} KB</div></div>
+    <div class="verdict ${verdictClass(rep)}"><div class="conf">${esc(CONF[rep.confidence] || rep.confidence)}</div>
+    <h2>${esc(rep.verdict)}</h2><p>${esc(rep.summary)}</p></div>`;
+  for (const [layer, title] of Object.entries(LAYERS)) {
+    const items = rep.evidence.filter(e => e.layer === layer);
+    if (!items.length) continue;
+    html += `<h3>${title}</h3>`;
+    for (const e of items) {
+      const tag = STRENGTH[e.strength] ? `<span class="tag">${STRENGTH[e.strength]}</span>` : '';
+      const det = Object.keys(e.details || {}).length
+        ? `<details><summary>Details</summary><pre>${esc(JSON.stringify(e.details, null, 2))}</pre></details>` : '';
+      html += `<div class="ev"><div class="dot ${esc(e.points_to)}"></div><div><b>${esc(e.check)}${tag}</b><span>${esc(e.finding)}</span>${det}</div></div>`;
+    }
+  }
+  $('res-detect').innerHTML = html;
+}
+
+wireDrop('detect', async file => {
+  showError('detect');
+  $('res-detect').innerHTML = '<p class="note">Analysing…</p>';
+  try {
+    renderReport(await post('/api/analyze', file), URL.createObjectURL(file));
+  } catch (e) { $('res-detect').innerHTML = ''; showError('detect', e.message); }
+});
+
+// ---- Sign
+let signFile = null;
+wireDrop('sign', file => {
+  signFile = file;
+  $('drop-sign').innerHTML = `<strong>${esc(file.name)}</strong> selected. Drop another to replace it.`;
+  $('btn-sign').disabled = false;
+  showError('sign');
+});
+
+$('btn-sign').addEventListener('click', async () => {
+  if (!signFile) return;
+  showError('sign');
+  $('btn-sign').disabled = true;
+  $('res-sign').innerHTML = '<p class="note">Signing and running edits…</p>';
+  try {
+    const r = await post('/api/sign', signFile, { payload: $('payload').value });
+    const signedUrl = 'data:image/png;base64,' + r.image_png_base64;
+    const rows = r.robustness.map(x => `<tr><td>${esc(x.edit)}</td>
+      <td class="${x.detected ? 'yes' : 'no'}">${x.detected ? 'Detected' : 'Not detected'}</td>
+      <td class="${x.payload_recovered ? 'yes' : 'no'}">${x.payload_recovered ? 'Recovered' : 'Lost'}</td>
+      <td class="num">${x.score.toFixed(1)}</td></tr>`).join('');
+    $('res-sign').innerHTML = `
+      <div class="pair">
+        <figure><img src="${URL.createObjectURL(signFile)}" alt="Original image"><figcaption>Original</figcaption></figure>
+        <figure><img src="${signedUrl}" alt="Signed image"><figcaption>Signed, ID ${esc(r.payload_hex)} · PSNR ${r.psnr_db} dB (above about 40 dB the change is hard to see)</figcaption></figure>
+      </div>
+      <a class="btn" href="${signedUrl}" download="signed_${esc(r.payload_hex)}.png">Download signed image</a>
+      <p class="note">Try it: download the signed image, edit or re-save it however you like, then drop it on the Detect tab.</p>
+      <h3>Does the watermark survive?</h3>
+      <div class="scroll"><table><thead><tr><th>Edit applied</th><th>Watermark</th><th>ID</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="note">Score is a z-score; the watermark counts as detected at ${r.threshold} or above. Cropping shifts the block grid the mark is aligned to, which is this simple scheme's known weakness.</p>
+      ${r.using_dev_key ? '<p class="note">Using the built-in development key. Set AIGC_WM_KEY to a secret value before deploying.</p>' : ''}`;
+  } catch (e) { $('res-sign').innerHTML = ''; showError('sign', e.message); }
+  $('btn-sign').disabled = false;
+});
+</script>
+</body>
+</html>

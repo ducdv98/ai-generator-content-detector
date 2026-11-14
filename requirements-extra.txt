@@ -1,0 +1,13 @@
+# Optional extras.
+# invisible-watermark enables the Stable Diffusion watermark check (it pulls in torch).
+# torch + transformers + onnx + onnxscript are for running a Hugging Face classifier
+# directly and for scripts/export_onnx.py (use the GPU laptop for that).
+invisible-watermark
+torch
+transformers
+onnx
+onnxscript
+pytest
+httpx
+scikit-image
+scikit-learn

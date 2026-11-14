@@ -1,0 +1,12 @@
+# Core service: runs on a CPU-only server (x86 or ARM), no torch needed.
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+opencv-python-headless
+c2pa-python
+onnxruntime
+# Text watermark page: tokenizer for detection, hub client to fetch the demo model.
+tokenizers
+huggingface_hub

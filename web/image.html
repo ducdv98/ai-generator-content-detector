@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Watermark Lab</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1c1b19; --muted: #6b675f; --line: #e2dfd6;
+    --accent: #2f5d50; --accent-ink: #ffffff; --neutral-bg: #efede6;
+    --ai: #b3402a; --ai-bg: #fbeae5; --ok: #2f6b3f; --ok-bg: #e6f2e8; --warn: #8a6410; --warn-bg: #fbf1d6;
+    --pos: #1baf7a; --neg: #eb6834; --series: #2a78d6; --grid: #e9e6de; --null: #d9d5ca;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151614; --panel: #1f201d; --ink: #ecebe6; --muted: #a3a097; --line: #34352f;
+      --accent: #7fc0aa; --accent-ink: #10201b; --neutral-bg: #2a2b27;
+      --ai: #f0937e; --ai-bg: #3a211b; --ok: #8fd09d; --ok-bg: #1c2e20; --warn: #e6c36a; --warn-bg: #33290f;
+      --pos: #199e70; --neg: #d95926; --series: #3987e5; --grid: #2c2d28; --null: #3b3c36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 16px 72px; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 22px 0 8px; }
+  .lede { color: var(--muted); margin: 0 0 20px; max-width: 68ch; }
+  .sub { color: var(--muted); font-size: .93rem; margin: 0 0 14px; max-width: 72ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .scope { background: var(--warn-bg); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: .95rem; }
+  .scope b { color: var(--warn); }
+  label, .lab { font-size: .85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=text] { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+         background: var(--bg); color: var(--ink); width: 100%; font-family: ui-monospace, Consolas, monospace; }
+  input[type=file] { display: none; }
+  input:focus-visible, button:focus-visible, .drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-top: 12px; }
+  .row > .fix { flex: 0 0 170px; }
+  .btn { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; cursor: pointer;
+         background: var(--accent); color: var(--accent-ink); white-space: nowrap; text-decoration: none; display: inline-block; }
+  .btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .checks { display: grid; gap: 8px; margin: 4px 0; }
+  .checks label { display: flex; gap: 10px; align-items: baseline; color: var(--ink); font-size: .95rem; margin: 0; cursor: pointer; }
+  .checks small { color: var(--muted); }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 16px; text-align: center; color: var(--muted); cursor: pointer; }
+  .drop.over, .drop:hover { border-color: var(--accent); background: var(--neutral-bg); }
+  .drop strong { color: var(--ink); }
+  .note { color: var(--muted); font-size: .88rem; }
+  .err { color: var(--ai); margin-top: 10px; font-size: .93rem; }
+  .hidden { display: none !important; }
+
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  figure { margin: 0; } figure img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+  .trio.pick img { cursor: zoom-in; }
+  .zoom canvas { width: 100%; aspect-ratio: 3 / 2; border-radius: 8px; border: 1px solid var(--line); display: block; image-rendering: pixelated; }
+
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 6px; }
+  .tile { text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+          border-radius: 10px; padding: 12px 14px; cursor: pointer; border-top: 3px solid var(--line); }
+  .tile[aria-selected="true"] { background: var(--panel); border-color: var(--accent); }
+  .tile .name { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .tile .state { font-weight: 650; font-size: 1.05rem; margin: 2px 0; }
+  .tile .num { font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tile.s-detected { border-top-color: var(--ai); } .tile.s-detected .state { color: var(--ai); }
+  .verdict { border-radius: 10px; padding: 14px 18px; margin: 14px 0 4px; }
+  .verdict h2 { font-size: 1.2rem; margin: 0 0 2px; } .verdict p { margin: 0; font-size: .95rem; }
+  .v-detected { background: var(--ai-bg); } .v-detected h2 { color: var(--ai); }
+  .v-none { background: var(--neutral-bg); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 2px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  .stat span { font-size: .82rem; color: var(--muted); }
+  .cap { font-size: .88rem; color: var(--muted); margin: 4px 0 0; max-width: 76ch; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin: 0 0 8px; align-items: center; }
+  .legend i { display: inline-block; width: 22px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .legend label { display: inline-flex; gap: 6px; align-items: center; margin: 0; cursor: pointer; }
+
+  /* file anatomy */
+  .anat { display: flex; height: 34px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--panel); }
+  .anat div { min-width: 5px; }
+  .k-pixels { background: var(--series); } .k-label { background: var(--neg); } .k-other { background: var(--null); }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+  .ev { border-top: 1px solid var(--line); padding: 10px 0; }
+  .ev b { display: block; } .ev span { color: var(--muted); font-size: .93rem; }
+  .tag { font-size: .72rem; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; margin-left: 6px;
+         color: var(--muted); font-weight: 400; vertical-align: 1px; }
+
+  /* picture with a map drawn over it */
+  .over { position: relative; max-width: 560px; }
+  .over img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); }
+  .over canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 8px; }
+
+  /* decoded message, one row per byte */
+  .bits { display: grid; gap: 3px; font: 600 .78rem ui-monospace, Consolas, monospace; width: max-content; max-width: 100%; }
+  .byte { display: flex; gap: 3px; align-items: center; }
+  .bit { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; color: var(--ink); }
+  .bit.ok { background: color-mix(in srgb, var(--pos) calc(var(--a) * 1%), transparent); }
+  .bit.bad { background: color-mix(in srgb, var(--neg) 55%, transparent); outline: 2px dotted var(--neg); outline-offset: -2px; }
+  .byte .ch { margin-left: 8px; min-width: 2.2em; font-size: .95rem; }
+  .byte .ch.miss { color: var(--neg); }
+  .cols { display: grid; grid-template-columns: max-content 1fr; gap: 22px; align-items: start; }
+
+  .chart { position: relative; margin-top: 4px; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart text { fill: var(--muted); font-size: 11.5px; font-family: inherit; }
+  .chart text.strong { fill: var(--ink); font-weight: 600; }
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); border-radius: 6px;
+         padding: 6px 9px; font-size: .8rem; line-height: 1.35; max-width: 280px; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  #tip b { font-weight: 650; } #tip .k { opacity: .75; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); }
+  th { font-size: .76rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .yes { color: var(--ok); font-weight: 600; } .no { color: var(--ai); font-weight: 600; } .na { color: var(--muted); }
+  td small { color: var(--muted); font-weight: 400; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  details { margin-top: 10px; } summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto;
+        font-size: .78rem; margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
+  .scroll { overflow-x: auto; }
+  .how p { margin: 8px 0; max-width: 76ch; font-size: .95rem; }
+  @media (max-width: 680px) { .tiles, .trio { grid-template-columns: 1fr; } .panel { padding: 14px; } .cols { grid-template-columns: 1fr; }
+    .bit { width: 20px; height: 20px; } th, td { padding: 6px 4px; font-size: .85rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Image Watermark Lab</h1>
+  <p class="lede">Three ways an image gets marked as AI-made, what each one looks like as evidence, and which survive being shared. <a href="/text">Text lab</a> · <a href="/video">Video lab</a> · <a href="/audio">Audio lab</a> · <a href="/">Earlier detector page</a></p>
+
+  <div class="scope">
+    <b>What this page can and cannot show.</b> It reads file labels (including signed Content Credentials), Stable Diffusion's public pixel watermark, and a keyed watermark made here. It cannot read the learned watermarks vendors use today, such as Google's SynthID on Gemini and OpenAI images: their detectors are neural networks that are not published. Google and OpenAI each run a public checking tool for their own images.
+  </div>
+
+  <section class="panel" aria-labelledby="h-make">
+    <h2 id="h-make">1. Make a marked sample</h2>
+    <p class="sub">Start from the sample picture or one of your own, and choose which marks to add.</p>
+    <div class="checks">
+      <label><input type="checkbox" id="m-label" checked><span>File label <small>an "AI-generated" tag stored beside the pixels (IPTC DigitalSourceType)</small></span></label>
+      <label><input type="checkbox" id="m-public" checked><span>Public pixel watermark <small>the one Stable Diffusion's own scripts add: fixed message, no key</small></span></label>
+      <label><input type="checkbox" id="m-keyed" checked><span>Keyed pixel watermark <small>a noise pattern only the key holder can find, carrying an ID</small></span></label>
+    </div>
+    <div class="row">
+      <div class="fix"><label for="wkey">Key used to write</label><input type="text" id="wkey" value="demo-key" maxlength="200"></div>
+      <div class="fix"><label for="payload">ID to hide (8 hex digits)</label><input type="text" id="payload" value="C0FFEE42" maxlength="8"></div>
+      <button class="btn" id="make">Add the marks</button>
+      <button class="btn ghost" id="pick">Use my own picture</button>
+      <input type="file" id="make-file" accept="image/*">
+    </div>
+    <p class="note" id="make-src" style="margin:10px 0 0">Source: the built-in sample landscape.</p>
+    <div class="err hidden" id="make-err" role="alert"></div>
+    <div id="made" class="hidden">
+      <div class="trio pick">
+        <figure><img id="im-before" alt="The picture before marking"><figcaption><b>Before</b></figcaption></figure>
+        <figure><img id="im-after" alt="The picture after marking"><figcaption><b>After</b> <span id="cap-after"></span></figcaption></figure>
+        <figure><img id="im-diff" alt="The difference between the two pictures, amplified"><figcaption><b>What changed</b> <span id="cap-diff"></span></figcaption></figure>
+      </div>
+      <div class="trio zoom" aria-hidden="true"><canvas id="z-before" width="162" height="108"></canvas><canvas id="z-after" width="162" height="108"></canvas><canvas id="z-diff" width="162" height="108"></canvas></div>
+      <p class="cap">The same spot in all three, enlarged about 6 times. Click anywhere in a picture above to look at another spot.</p>
+      <p class="cap" id="made-cap"></p>
+      <div class="row"><a class="btn ghost" id="dl" download="marked.png">Download the marked PNG</a></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-check">
+    <h2 id="h-check">2. Check an image</h2>
+    <p class="sub">The sample you made is checked automatically. Or drop any image file here: the original file, not a screenshot, if you want its labels read.</p>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose an image to check"><strong>Drop an image</strong> or click to choose one</div>
+    <input type="file" id="check-file" accept="image/*">
+    <div class="row">
+      <div class="fix"><label for="rkey">Key used to read</label><input type="text" id="rkey" value="demo-key" maxlength="200"></div>
+      <button class="btn ghost" id="ex-signed">Load a signed example</button>
+      <button class="btn ghost" id="ex-plain">Load the unmarked sample</button>
+    </div>
+    <div class="err hidden" id="check-err" role="alert"></div>
+    <div id="result" class="hidden">
+      <div id="verdict" class="verdict" role="status"></div>
+      <h3>Three checks, select one to see its evidence</h3>
+      <div class="tiles" role="tablist" id="tiles"></div>
+      <div id="view"></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-surv">
+    <h2 id="h-surv">3. What survives being shared</h2>
+    <p class="sub">Takes the image from step 2, applies eleven everyday edits, and runs all three checks again on each result.</p>
+    <button class="btn" id="surv" disabled>Run the edits</button>
+    <div class="err hidden" id="surv-err" role="alert"></div>
+    <div id="surv-out"></div>
+  </section>
+
+  <section class="panel how" aria-labelledby="h-how">
+    <h2 id="h-how">How the marks work</h2>
+    <p><b>File labels.</b> An image file holds the picture plus blocks of notes. C2PA Content Credentials are a signed note saying who made the image and how; IPTC DigitalSourceType is a plain unsigned tag. Both are exact and easy to read, and both are gone the moment a platform, a chat app or a screenshot copies only the picture.</p>
+    <p><b>Public pixel watermark.</b> Stable Diffusion's scripts nudge one value in every 8×8-pixel block of a colour channel onto a grid, spelling a fixed message over and over. No key: anyone can read it, and anyone can remove or forge it. It breaks when the pixel grid shifts (resize, crop) or values are re-rounded (JPEG).</p>
+    <p><b>Keyed pixel watermark.</b> A key generates a faint noise pattern that is added to the brightness. Only the key regenerates the pattern, so only its holder can detect it, and it survives compression and resizing because the evidence is spread over thousands of values. This one is a simple hand-built version of the idea.</p>
+    <p><b>Learned watermarks (not runnable here).</b> SynthID, Adobe's TrustMark and Meta's watermarks replace the hand-built pattern with a trained encoder network that writes the mark and a decoder network that reads it, trained together against crops, rotations, filters and compression. Same principle as the keyed mark; the secret is the network's weights. More detail and sources: <code>docs/image-watermarking.md</code>.</p>
+  </section>
+</main>
+<div id="tip" class="hidden" role="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (q) => document.querySelector(q);
+const NS = "http://www.w3.org/2000/svg";
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+function s(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const fmt = (x, d = 1) => Number(x).toFixed(d);
+const pct = (x) => (100 * x).toFixed(0) + "%";
+const kb = (n) => n < 1024 ? n + " bytes" : n < 1048576 ? (n / 1024).toFixed(n < 10240 ? 1 : 0) + " kB" : (n / 1048576).toFixed(1) + " MB";
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+function oneInLog(lg) {
+  if (lg < 3) return Math.max(2, Math.round(10 ** lg)).toLocaleString("en-US");
+  if (lg < 6) return (Math.round(10 ** lg / 1000) * 1000).toLocaleString("en-US");
+  if (lg < 9) return Number((10 ** (lg - 6)).toPrecision(2)) + " million";
+  if (lg < 12) return Number((10 ** (lg - 9)).toPrecision(2)) + " billion";
+  return "10" + String(Math.round(lg)).split("").map((d) => SUP[d]).join("");
+}
+const zLog = (z, p) => p > 1e-300 ? -Math.log10(p) : (z * z) / 2 / Math.LN10 + Math.log10(z * Math.sqrt(2 * Math.PI));
+/* Past 10^30 the bell-curve arithmetic is no longer meaningful, so stop counting there. */
+const rare = (lg) => lg > 30 ? "under 1 in 10³⁰" : "1 in " + oneInLog(lg);
+
+const tip = $("#tip");
+function showTip(ev, lines) {
+  tip.replaceChildren();
+  lines.forEach(([strong, rest], i) => {
+    if (i) tip.append(h("br"));
+    if (strong) tip.append(h("b", { text: strong }));
+    if (rest) tip.append(h("span", { class: "k", text: (strong ? " " : "") + rest }));
+  });
+  tip.classList.remove("hidden");
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 16;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 10;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 12;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => tip.classList.add("hidden");
+function fail(id, e) { const el = $(id); el.textContent = e.message || String(e); el.classList.remove("hidden"); }
+async function post(url, fd) {
+  const res = await fetch(url, { method: "POST", body: fd });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Request failed (" + res.status + ").");
+  return res.json();
+}
+const b64blob = (b64, type) => new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type });
+
+/* ---------- 1. make ---------- */
+let source = null;      // { blob, name } or null for the built-in sample
+let made = null;        // marked PNG blob
+async function sampleBlob() { return (await fetch("/samples/landscape.png")).blob(); }
+$("#pick").addEventListener("click", () => $("#make-file").click());
+$("#make-file").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  source = { blob: f, name: f.name };
+  $("#make-src").textContent = "Source: " + f.name + ".";
+});
+$("#make").addEventListener("click", async () => {
+  $("#make-err").classList.add("hidden"); $("#make").disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append("file", source ? source.blob : await sampleBlob(), source ? source.name : "landscape.png");
+    for (const k of ["label", "public", "keyed"]) fd.append(k, $("#m-" + k).checked);
+    fd.append("key", $("#wkey").value || "demo-key"); fd.append("payload", $("#payload").value || "0");
+    const r = await post("/api/image/make", fd);
+    made = b64blob(r.after_png, "image/png");
+    for (const [id, key] of [["#im-before", "before_png"], ["#im-after", "after_png"], ["#im-diff", "diff_png"]]) $(id).src = "data:image/png;base64," + r[key];
+    $("#dl").href = URL.createObjectURL(made);
+    madeSize = [r.width, r.height];
+    const pix = r.marks.public || r.marks.keyed;
+    $("#cap-after").textContent = pix ? "looks the same" : "pixels untouched";
+    $("#cap-diff").textContent = pix ? "difference × " + r.gain + ", grey = no change" : "nothing: a label is not in the pixels";
+    $("#made-cap").textContent = pix
+      ? "The marks changed " + pct(r.changed_pixels) + " of pixels, by at most " + r.largest_change + " of 255 levels (quality: " + r.psnr_db + " dB PSNR). " +
+        (r.marks.public ? "The coloured 8×8 blocks are the public watermark, which edits the blue-yellow channel. " : "") +
+        (r.marks.keyed ? "The fine grey grain is the keyed pattern, which edits brightness." : "")
+      : "Only the file label was added, so the picture is identical. The label is a separate block in the file.";
+    $("#made").classList.remove("hidden");
+    $("#rkey").value = $("#wkey").value || "demo-key";
+    check(made, "marked.png");
+  } catch (e) { fail("#make-err", e); } finally { $("#make").disabled = false; }
+});
+
+/* Enlarged view: the same region of before / after / difference, pixel for pixel. */
+let madeSize = [1, 1];
+function zoomTo(fx, fy) {
+  // Each canvas is 162 x 108 image pixels, shown about 6 times larger with hard pixel edges.
+  for (const k of ["before", "after", "diff"]) {
+    const cv = $("#z-" + k), g = cv.getContext("2d"), [iw, ih] = madeSize;
+    const x = Math.round(Math.max(0, Math.min(iw - cv.width, fx * iw - cv.width / 2))), y = Math.round(Math.max(0, Math.min(ih - cv.height, fy * ih - cv.height / 2)));
+    const im = $("#im-" + k);
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (im.complete && im.naturalWidth) g.drawImage(im, x, y, cv.width, cv.height, 0, 0, cv.width, cv.height);
+  }
+}
+let zoomAt = [0.5, 0.45];
+for (const k of ["before", "after", "diff"]) {
+  $("#im-" + k).addEventListener("load", () => zoomTo(...zoomAt));     // redraw as each new picture arrives
+  $("#im-" + k).addEventListener("click", (ev) => {
+    const r = ev.target.getBoundingClientRect();
+    zoomAt = [(ev.clientX - r.left) / r.width, (ev.clientY - r.top) / r.height];
+    zoomTo(...zoomAt);
+  });
+}
+
+/* ---------- 2. check ---------- */
+let R = null, cur = null, view = "labels", showMap = true;
+async function check(blob, name, keepView) {
+  $("#check-err").classList.add("hidden");
+  try {
+    const fd = new FormData(); fd.append("file", blob, name); fd.append("key", $("#rkey").value || "demo-key");
+    R = await post("/api/image/check", fd);
+    if (cur && cur.url) URL.revokeObjectURL(cur.url);
+    cur = { blob, name, url: URL.createObjectURL(blob) };
+    $("#surv").disabled = false; $("#surv-out").replaceChildren();
+    render(!keepView);
+  } catch (e) { fail("#check-err", e); }
+}
+const drop = $("#drop");
+drop.addEventListener("click", () => $("#check-file").click());
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#check-file").click(); } });
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) check(f, f.name); });
+$("#check-file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) check(f, f.name); });
+$("#ex-signed").addEventListener("click", async () => check(await (await fetch("/samples/c2pa-ai-signed.jpg")).blob(), "c2pa-ai-signed.jpg"));
+$("#ex-plain").addEventListener("click", async () => check(await sampleBlob(), "landscape.png"));
+let kt = null;
+$("#rkey").addEventListener("input", () => { clearTimeout(kt); kt = setTimeout(() => cur && check(cur.blob, cur.name, true), 400); });
+
+const CHECKS = [{ id: "labels", name: "File labels" }, { id: "public", name: "Public watermark" }, { id: "keyed", name: "Keyed watermark" }];
+function render(auto) {
+  $("#result").classList.remove("hidden");
+  const L = R.labels, P = R.public, K = R.keyed;
+  const found = [];
+  if (L.verdict === "detected") found.push("an AI label in the file");
+  if (P.verdict === "detected") found.push("the public watermark of " + P.candidates[P.best].name);
+  if (K.verdict === "detected") found.push("the keyed watermark");
+  const v = $("#verdict");
+  v.className = "verdict v-" + (found.length ? "detected" : "none");
+  const list = found.length > 1 ? found.slice(0, -1).join(", ") + " and " + found[found.length - 1] : found[0];
+  v.replaceChildren(h("h2", { text: found.length ? "Found: " + list : "No mark found" }),
+    h("p", { text: found.length
+      ? cur.name + ", " + R.file.width + " × " + R.file.height + " " + (R.file.format || "") + ". Each finding has its own evidence below."
+      : "No AI label, no Stable Diffusion watermark, and nothing for the key \"" + R.key + "\". That does not make the image real: labels are easily lost and most vendor watermarks cannot be read here." }));
+  if (auto) view = L.verdict === "detected" ? "labels" : P.verdict === "detected" ? "public" : K.verdict === "detected" ? "keyed" : "labels";
+  tiles(); renderView();
+}
+function tiles() {
+  const L = R.labels, P = R.public, K = R.keyed, box = $("#tiles"); box.replaceChildren();
+  const best = P.candidates.length ? P.candidates[P.best] : null;
+  const rows = {
+    labels: [L.verdict === "detected" ? "AI label found" : L.verdict === "other" ? "Label found, not AI" : "None found",
+             L.label_bytes ? kb(L.label_bytes) + " of notes in the file" : "no note blocks in the file", L.verdict],
+    public: [P.verdict === "detected" ? "Watermark found" : P.verdict === "too_small" ? "Image too small" : "Not found",
+             best ? best.matched + " of " + best.n + " bits match" : "needs 256 × 256 pixels", P.verdict],
+    keyed: [K.verdict === "detected" ? "Watermark found" : K.verdict === "too_small" ? "Image too small" : "Not found",
+            "score " + fmt(K.z) + ", line at " + K.threshold, K.verdict],
+  };
+  for (const c of CHECKS) {
+    const [state, num, verdict] = rows[c.id];
+    const b = h("button", { class: "tile" + (verdict === "detected" ? " s-detected" : ""), role: "tab", "aria-selected": String(view === c.id), "aria-controls": "view" },
+      h("div", { class: "name", text: c.name }), h("div", { class: "state", text: state }), h("div", { class: "num", text: num }));
+    b.addEventListener("click", () => { view = c.id; tiles(); renderView(); });
+    box.append(b);
+  }
+}
+function stat(big, small) { return h("div", { class: "stat" }, h("b", { text: big }), h("span", { text: small })); }
+function renderView() {
+  hideTip();
+  const box = $("#view"); box.replaceChildren();
+  ({ labels: labelsView, public: publicView, keyed: keyedView })[view](box);
+}
+
+/* picture with a grid of evidence drawn over it */
+function overlay(map, fracW, fracH, alphaOf, tipOf) {
+  const wrap = h("div", { class: "over" }), img = h("img", { src: cur.url, alt: "The checked image with the evidence map drawn over it" }), cv = h("canvas");
+  wrap.append(img, cv);
+  const draw = () => {
+    const W = cv.width = wrap.clientWidth * devicePixelRatio, H = cv.height = wrap.clientHeight * devicePixelRatio;
+    const g = cv.getContext("2d"); g.clearRect(0, 0, W, H);
+    if (!showMap) return;
+    const cw = (W * fracW) / map.cols, ch = (H * fracH) / map.rows, pos = css("--pos"), neg = css("--neg");
+    map.cells.forEach((row, i) => row.forEach((val, j) => {
+      const a = alphaOf(val); if (Math.abs(a) < 0.03) return;
+      g.globalAlpha = Math.min(0.78, Math.abs(a) * 0.78); g.fillStyle = a > 0 ? pos : neg;
+      g.fillRect(j * cw + 1, i * ch + 1, Math.max(1, cw - 2), Math.max(1, ch - 2));
+    }));
+  };
+  img.addEventListener("load", draw);
+  cv.addEventListener("pointermove", (ev) => {
+    const r = cv.getBoundingClientRect(), j = Math.floor(((ev.clientX - r.left) / (r.width * fracW)) * map.cols), i = Math.floor(((ev.clientY - r.top) / (r.height * fracH)) * map.rows);
+    if (i < 0 || j < 0 || i >= map.rows || j >= map.cols) return hideTip();
+    showTip(ev, tipOf(map.cells[i][j], i, j));
+  });
+  cv.addEventListener("pointerleave", hideTip);
+  wrap._draw = draw;
+  return wrap;
+}
+function mapToggle(over, ...legend) {
+  const cb = h("input", { type: "checkbox" }); cb.checked = showMap;
+  cb.addEventListener("change", () => { showMap = cb.checked; over._draw(); });
+  return h("div", { class: "legend" }, h("label", {}, cb, "Show the map"), ...legend);
+}
+
+/* ---- file labels ---- */
+function labelsView(box) {
+  const L = R.labels;
+  box.append(h("h3", { text: "What the file is made of" }));
+  const bar = h("div", { class: "anat", role: "img", "aria-label": "File blocks in order: " + L.parts.map((p) => p.name + " " + kb(p.bytes)).join(", ") });
+  for (const p of L.parts) {
+    const d = h("div", { class: "k-" + p.kind, style: "flex:" + p.bytes + " 1 0" });
+    d.addEventListener("pointermove", (ev) => showTip(ev, [[kb(p.bytes), pct(p.bytes / L.total_bytes) + " of the file"], ["", p.name]]));
+    d.addEventListener("pointerleave", hideTip);
+    bar.append(d);
+  }
+  box.append(bar);
+  const tb = h("tbody");
+  for (const p of L.parts) tb.append(h("tr", {}, h("td", {}, h("span", { class: "sw k-" + p.kind }), p.name),
+    h("td", { text: p.kind === "pixels" ? "the picture" : p.kind === "label" ? "a note about it" : "housekeeping" }), h("td", { class: "num", text: kb(p.bytes) })));
+  box.append(h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Block, in file order" }), h("th", { text: "Holds" }), h("th", { text: "Size" }))), tb)));
+  box.append(h("p", { class: "cap", text: "Labels live in the orange blocks, outside the picture data. Anything that copies only the picture (a screenshot, most uploads) leaves them behind." }));
+
+  box.append(h("h3", { text: "What the notes say" }));
+  const STR = { declared: "signed declaration", strong: "strong", weak: "weak hint", info: "nothing found" };
+  for (const e of L.findings) {
+    const row = h("div", { class: "ev" }, h("b", {}, e.check, h("span", { class: "tag", text: STR[e.strength] || e.strength })), h("span", { text: e.finding }));
+    if (e.details && Object.keys(e.details).length) row.append(h("details", {}, h("summary", { text: "Raw values" }), h("pre", { text: JSON.stringify(e.details, null, 2) })));
+    box.append(row);
+  }
+}
+
+/* ---- public watermark ---- */
+function publicView(box) {
+  const P = R.public;
+  if (!P.candidates.length) { box.append(h("p", { class: "cap", text: "The image is under 256 × 256 pixels, too small for this watermark to be written or read." })); return; }
+  const c = P.candidates[P.best], found = P.verdict === "detected";
+  box.append(h("h3", { text: "The count" }));
+  box.append(h("div", { class: "stats" },
+    stat(c.matched + " of " + c.n, "bits match the " + c.name + " message"),
+    stat(c.chance < 0.4 ? rare(-Math.log10(c.chance)) : "ordinary", c.chance < 0.4 ? "random images match this well" : "for an image with no watermark"),
+    stat(P.blocks.toLocaleString("en-US"), "8×8-pixel blocks read, about " + P.votes_per_bit + " votes per bit")));
+
+  box.append(h("h3", { text: found ? "The message read from the pixels" : "Closest message: " + c.name + (c.text ? " (\"" + c.text + "\")" : "") }));
+  const grid = h("div", { class: "bits" });
+  for (let b = 0; b < c.n; b += 8) {
+    const row = h("div", { class: "byte" }); let val = 0, exp = 0;
+    for (let k = b; k < Math.min(b + 8, c.n); k++) {
+      const ok = c.decoded[k] === c.expected[k], conf = Math.abs(c.share[k] - 0.5) * 2;
+      val = val * 2 + c.decoded[k]; exp = exp * 2 + c.expected[k];
+      const cell = h("div", { class: "bit " + (ok ? "ok" : "bad"), style: "--a:" + Math.round(22 + conf * 55), text: c.decoded[k] });
+      cell.addEventListener("pointermove", (ev) => showTip(ev, [["Bit " + (k + 1) + ": read " + c.decoded[k], ok ? "as expected" : "expected " + c.expected[k]], ["", pct(c.share[k]) + " of its blocks voted 1"]]));
+      cell.addEventListener("pointerleave", hideTip);
+      row.append(cell);
+    }
+    const show = (n) => c.text ? (n >= 32 && n < 127 ? String.fromCharCode(n) : "·") : n.toString(16).toUpperCase().padStart(2, "0");
+    row.append(h("span", { class: "ch" + (val === exp ? "" : " miss"), text: show(val) + (val === exp ? "" : " ≠ " + show(exp)) }));
+    grid.append(row);
+  }
+  const over = overlay(P.map, P.grid_px[0] / R.file.width, P.grid_px[1] / R.file.height, (v) => (v - 0.5) * 2,
+    (v) => [[pct(v), "of blocks here agree with the message"], ["", v > 0.75 ? "The mark is intact here." : v < 0.6 ? "No better than a coin flip." : "Partly readable."]]);
+  box.append(h("div", { class: "cols" }, grid, h("div", {},
+    mapToggle(over, h("span", {}, h("i", { style: "background:var(--pos)" }), "blocks agree with the message"), h("span", {}, h("i", { style: "background:var(--neg)" }), "disagree")), over)));
+  box.append(h("p", { class: "cap", text: found
+    ? "Each row is one byte of the message and its character. Read down the right-hand column. The map shows where in the picture the blocks still carry it: the mark holds in textured areas and is weak in smooth ones, where nudging one value changes which value is the largest."
+    : "With no watermark each bit is a coin flip, so about half match and the right-hand column is noise. The map has no structure." }));
+
+  const tb = h("tbody");
+  for (const k of P.candidates) tb.append(h("tr", {}, h("td", { text: k.name }), h("td", { text: k.text ? "\"" + k.text + "\"" : k.n + "-bit constant" }),
+    h("td", { class: "num", text: k.matched + " / " + k.n }), h("td", { class: "num", text: k.chance < 0.4 ? rare(-Math.log10(k.chance)) : "ordinary" })));
+  box.append(h("h3", { text: "Every public message tried" }));
+  box.append(h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Generator" }), h("th", { text: "Message" }), h("th", { text: "Bits matching" }), h("th", { text: "Chance of that" }))), tb)));
+}
+
+/* ---- keyed watermark ---- */
+function niceTicks(lo, hi, count) {
+  const raw = (hi - lo) / count, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v * 1e6) / 1e6);
+  return out;
+}
+function bellChart(z, thr) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, $("#view").clientWidth || 800), H = 118, m = { l: 12, r: 12, t: 30, b: 26 };
+  const lo = -5, hi = Math.max(10, Math.ceil(z * 1.08 + 2)), zc = Math.max(lo, z);
+  const x = (v) => m.l + ((v - lo) / (hi - lo)) * (W - m.l - m.r), base = H - m.b, top = m.t + 6;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "This image scores " + fmt(z) + ". Images without this key's watermark cluster around 0; the detection line is " + thr + "." });
+  let d = "M" + x(lo) + " " + base;
+  for (let v = lo; v <= 5; v += 0.1) d += "L" + x(v).toFixed(1) + " " + (base - Math.exp(-v * v / 2) * (base - top)).toFixed(1);
+  svg.append(s("path", { d: d + "L" + x(5) + " " + base + "Z", fill: "var(--null)" }));
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: base, y2: base, stroke: "var(--muted)", "stroke-width": 1 }));
+  for (const t of niceTicks(lo, hi, 8)) svg.append(s("text", { x: x(t), y: base + 15, "text-anchor": "middle" }, t));
+  svg.append(s("text", { x: Math.max(x(0), 70), y: top - 8, "text-anchor": "middle" }, "no watermark, or wrong key"));
+  svg.append(s("line", { x1: x(thr), x2: x(thr), y1: top + 14, y2: base, stroke: "var(--ai)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  const mx = x(zc), right = mx > W * 0.6;
+  svg.append(s("line", { x1: mx, x2: mx, y1: top + 2, y2: base, stroke: "var(--series)", "stroke-width": 2 }));
+  svg.append(s("circle", { cx: mx, cy: top + 2, r: 5, fill: "var(--series)", stroke: "var(--panel)", "stroke-width": 2 }));
+  svg.append(s("text", { x: mx + (right ? -10 : 10), y: top + 6, "text-anchor": right ? "end" : "start", class: "strong" }, "this image, " + fmt(z)));
+  wrap.append(svg);
+  return wrap;
+}
+function bitBars(K) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, $("#view").clientWidth || 800), H = 220, m = { l: 34, r: 10, t: 12, b: 46 };
+  const all = K.preamble_z.concat(K.payload_z), N = all.length, np = K.preamble_z.length;
+  const ext = Math.max(4, Math.ceil(Math.max(...all.map(Math.abs)) + 1));
+  const gap = 14, step = (W - m.l - m.r - gap) / N, bw = Math.max(2, step - 2);
+  const xb = (i) => m.l + i * step + (i >= np ? gap : 0) + 1, y = (v) => m.t + ((ext - v) / (2 * ext)) * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Correlation score for each of " + N + " message bits." });
+  svg.append(s("rect", { x: m.l, width: W - m.l - m.r, y: y(2), height: y(-2) - y(2), fill: "var(--null)", opacity: .5 }));
+  for (const t of niceTicks(-ext, ext, 6)) {
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? "var(--muted)" : "var(--grid)", "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, t));
+  }
+  all.forEach((v, i) => {
+    const pre = i < np, up = v >= 0, y0 = y(0), y1 = y(v), top = Math.min(y0, y1), hgt = Math.max(1, Math.abs(y1 - y0)), r = Math.min(3, hgt, bw / 2), bx = xb(i);
+    const d = up ? `M${bx} ${y0}V${top + r}Q${bx} ${top} ${bx + r} ${top}H${bx + bw - r}Q${bx + bw} ${top} ${bx + bw} ${top + r}V${y0}Z`
+                 : `M${bx} ${y0}V${y1 - r}Q${bx} ${y1} ${bx + r} ${y1}H${bx + bw - r}Q${bx + bw} ${y1} ${bx + bw} ${y1 - r}V${y0}Z`;
+    const bar = s("path", { d, fill: pre ? (up ? "var(--pos)" : "var(--neg)") : "var(--series)" });
+    const hit = s("rect", { x: bx - 1, y: m.t, width: step, height: H - m.t - m.b, fill: "transparent" });
+    hit.addEventListener("pointermove", (ev) => { bar.setAttribute("opacity", .7); showTip(ev, pre
+      ? [[fmt(v), "preamble bit " + (i + 1)], ["", up ? "Agrees with the key's fixed pattern." : "Disagrees with the key's fixed pattern."]]
+      : [[fmt(v), "payload bit " + (i - np + 1)], ["", "Reads as " + (up ? 1 : 0) + (Math.abs(v) < 2 ? ", but within chance range." : ".")]]); });
+    hit.addEventListener("pointerleave", () => { bar.removeAttribute("opacity"); hideTip(); });
+    svg.append(bar, hit);
+    if (!pre && step >= 11) svg.append(s("text", { x: bx + bw / 2, y: H - m.b + 13, "text-anchor": "middle" }, up ? "1" : "0"));
+  });
+  svg.append(s("text", { x: xb(0), y: H - 6 }, np + " preamble bits"));
+  svg.append(s("text", { x: xb(np), y: H - 6 }, (N - np) + " payload bits" + (K.payload_hex ? ", ID " + K.payload_hex + " (lowest bit first)" : ", read only if the mark is found")));
+  wrap.append(svg);
+  return wrap;
+}
+function keyedView(box) {
+  const K = R.keyed, found = K.verdict === "detected";
+  if (K.verdict === "too_small") { box.append(h("p", { class: "cap", text: "The image is under 64 pixels on a side, too small for this watermark." })); return; }
+  box.append(h("h3", { text: "The count" }));
+  box.append(h("div", { class: "stats" },
+    stat(fmt(K.z), "detection score (line at " + K.threshold + ")"),
+    stat(K.z > 0.5 ? rare(zLog(K.z, K.p)) : "ordinary", K.z > 0.5 ? "images without this key's mark score this high" : "for an image without this key's mark"),
+    stat(found ? K.payload_hex : "none", found ? "ID carried by the mark" : "no ID: the mark was not found"),
+    stat(K.coefficients.toLocaleString("en-US"), "image values compared with the key's pattern")));
+  box.append(h("h3", { text: "Where this score sits" }));
+  box.append(bellChart(K.z, K.threshold));
+  box.append(h("p", { class: "cap", text: "The grey hump is where any image lands when it has no mark from this key. Change \"Key used to read\" and a marked image drops back into it." }));
+  box.append(h("h3", { text: "One score per message bit" }));
+  box.append(bitBars(K));
+  box.append(h("p", { class: "cap", text: "Each bit is spread over about " + K.per_bit.toLocaleString("en-US") + " values scattered across the whole picture. Bars inside the grey band are chance. Green preamble bars all pointing up is what detection means; the blue bars then spell the ID." }));
+  box.append(h("h3", { text: "Where in the picture the pattern was found" }));
+  const over = overlay(K.map, 1, 1, (v) => Math.max(-1, Math.min(1, v / 6)),
+    (v) => [[fmt(v), "local score"], ["", v > 2.5 ? "The key's pattern is present here." : v < -2.5 ? "Runs against the pattern." : "Within chance range."]]);
+  box.append(mapToggle(over, h("span", {}, h("i", { style: "background:var(--pos)" }), "pattern present"), h("span", { text: "no colour = chance level" })), over);
+  box.append(h("p", { class: "cap", text: "The same test run on each of 64 regions, using preamble values only. A real mark shows up everywhere at once, a little stronger where the picture has texture to hide it in." }));
+}
+
+/* ---------- 3. survive ---------- */
+$("#surv").addEventListener("click", async () => {
+  if (!cur) return;
+  $("#surv-err").classList.add("hidden"); $("#surv").disabled = true; $("#surv").textContent = "Running…";
+  try {
+    const fd = new FormData(); fd.append("file", cur.blob, cur.name); fd.append("key", $("#rkey").value || "demo-key");
+    const S = await post("/api/image/survive", fd), base = S.rows[0], out = $("#surv-out"); out.replaceChildren();
+    const cell = (present, ok, extra) => !present ? h("td", { class: "na", text: "not in this image" })
+      : h("td", {}, h("span", { class: ok ? "yes" : "no", text: ok ? "✓ survives" : "✕ lost" }), extra ? h("small", { text: extra }) : null);
+    const tb = h("tbody");
+    for (const r of S.rows) tb.append(h("tr", {}, h("td", { text: r.edit === "No edit" ? "No edit (the file as it is)" : r.edit }),
+      cell(base.label, r.label), cell(base.public.found, r.public.found, r.public.matched + "/" + r.public.n + " bits"),
+      cell(base.keyed.found, r.keyed.found, "score " + r.keyed.z)));
+    out.append(h("div", { class: "scroll", style: "margin-top:14px" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Edit" }), h("th", { text: "File label" }),
+      h("th", { text: "Public watermark" }), h("th", { text: "Keyed watermark" }))), tb)));
+    const n = (f) => S.rows.slice(1).filter(f).length, tot = S.rows.length - 1;
+    out.append(h("p", { class: "cap", text: "Of " + tot + " edits: the label survived " + (base.label ? n((r) => r.label) : "n/a") + ", the public watermark " +
+      (base.public.found ? n((r) => r.public.found) : "n/a") + ", the keyed watermark " + (base.keyed.found ? n((r) => r.keyed.found) : "n/a") +
+      ". Every edit here re-encodes the picture, as an upload or a screenshot does, which is why labels never make it. An editor that keeps metadata would keep the label." }));
+  } catch (e) { fail("#surv-err", e); } finally { $("#surv").disabled = false; $("#surv").textContent = "Run the edits"; }
+});
+
+let rz = null;
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => R && renderView(), 150); });
+</script>
+</body>
+</html>

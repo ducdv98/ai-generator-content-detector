@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text Watermark Lab</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1c1b19; --muted: #6b675f; --line: #e2dfd6;
+    --accent: #2f5d50; --accent-ink: #ffffff; --neutral-bg: #efede6;
+    --ai: #b3402a; --ai-bg: #fbeae5; --ok: #2f6b3f; --ok-bg: #e6f2e8; --warn: #8a6410; --warn-bg: #fbf1d6;
+    /* chart roles: evidence for / against the watermark, and the running-score line */
+    --pos: #1baf7a; --neg: #eb6834; --series: #2a78d6; --grid: #e9e6de; --null: #d9d5ca;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151614; --panel: #1f201d; --ink: #ecebe6; --muted: #a3a097; --line: #34352f;
+      --accent: #7fc0aa; --accent-ink: #10201b; --neutral-bg: #2a2b27;
+      --ai: #f0937e; --ai-bg: #3a211b; --ok: #8fd09d; --ok-bg: #1c2e20; --warn: #e6c36a; --warn-bg: #33290f;
+      --pos: #199e70; --neg: #d95926; --series: #3987e5; --grid: #2c2d28; --null: #3b3c36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 16px 72px; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 22px 0 8px; }
+  .lede { color: var(--muted); margin: 0 0 20px; max-width: 68ch; }
+  .sub { color: var(--muted); font-size: .93rem; margin: 0 0 14px; max-width: 72ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .scope { background: var(--warn-bg); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: .95rem; }
+  .scope b { color: var(--warn); }
+  label, .lab { font-size: .85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type=text], textarea { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+         background: var(--bg); color: var(--ink); width: 100%; }
+  input.key { font-family: ui-monospace, Consolas, monospace; }
+  textarea { min-height: 170px; resize: vertical; line-height: 1.5; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible, .seg label:focus-within {
+         outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-top: 12px; }
+  .row > .grow { flex: 1 1 220px; min-width: 0; }
+  .row > .fix { flex: 0 0 170px; }
+  .btn { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; cursor: pointer;
+         background: var(--accent); color: var(--accent-ink); white-space: nowrap; }
+  .btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); flex-wrap: wrap; }
+  .seg label { margin: 0; padding: 8px 12px; cursor: pointer; color: var(--muted); font-size: .92rem; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .note { color: var(--muted); font-size: .88rem; }
+  .err { color: var(--ai); margin-top: 10px; font-size: .93rem; }
+  .hidden { display: none !important; }
+
+  /* result summary: three tiles that also switch the view */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 4px 0 6px; }
+  .tile { text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+          border-radius: 10px; padding: 12px 14px; cursor: pointer; border-top: 3px solid var(--line); }
+  .tile[aria-selected="true"] { background: var(--panel); border-color: var(--accent); box-shadow: 0 1px 0 var(--line); }
+  .tile .name { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .tile .state { font-weight: 650; font-size: 1.05rem; margin: 2px 0; }
+  .tile .num { font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tile.s-detected { border-top-color: var(--ai); } .tile.s-detected .state { color: var(--ai); }
+  .tile.s-weak { border-top-color: var(--warn); } .tile.s-weak .state { color: var(--warn); }
+  .verdict { border-radius: 10px; padding: 14px 18px; margin: 12px 0 4px; }
+  .verdict h2 { font-size: 1.2rem; margin: 0 0 2px; } .verdict p { margin: 0; font-size: .95rem; }
+  .v-detected { background: var(--ai-bg); } .v-detected h2 { color: var(--ai); }
+  .v-weak, .v-too_short { background: var(--warn-bg); } .v-weak h2, .v-too_short h2 { color: var(--warn); }
+  .v-none { background: var(--neutral-bg); }
+
+  /* the pasted text, one span per token */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin: 0 0 8px; }
+  .legend i { display: inline-block; width: 22px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .tokens { white-space: pre-wrap; word-break: break-word; line-height: 1.95; border: 1px solid var(--line);
+            border-radius: 8px; padding: 12px 14px; background: var(--bg); max-height: 420px; overflow-y: auto; }
+  .tok { border-radius: 3px; padding: 2px 0; }
+  .tok:hover { outline: 1.5px solid var(--ink); }
+  .tok.g1 { background: color-mix(in srgb, var(--pos) 34%, transparent); }
+  .tok.g0 { background: color-mix(in srgb, var(--neg) 26%, transparent);
+            text-decoration: underline dotted color-mix(in srgb, var(--neg) 90%, var(--ink)); text-underline-offset: 3px; }
+  .tok.na { color: var(--muted); }
+  .inv { font: 600 .68rem ui-monospace, Consolas, monospace; background: var(--ai); color: var(--panel);
+         border-radius: 3px; padding: 1px 4px; margin: 0 1px; vertical-align: 1px; white-space: nowrap; }
+  .inv.sp { background: var(--warn); }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 2px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .stat span { font-size: .82rem; color: var(--muted); }
+  .chart { position: relative; margin-top: 4px; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart text { fill: var(--muted); font-size: 11.5px; font-family: inherit; }
+  .chart text.strong { fill: var(--ink); font-weight: 600; }
+  .cap { font-size: .88rem; color: var(--muted); margin: 2px 0 0; max-width: 76ch; }
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); border-radius: 6px;
+         padding: 6px 9px; font-size: .8rem; line-height: 1.35; max-width: 280px; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  #tip b { font-weight: 650; } #tip .k { opacity: .75; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); }
+  th { font-size: .76rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
+  td.num { font-variant-numeric: tabular-nums; } td.mono { font-family: ui-monospace, Consolas, monospace; }
+  details { margin-top: 12px; } summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+  .scroll { overflow: auto; max-height: 320px; }
+  .how p { margin: 8px 0; max-width: 76ch; font-size: .95rem; }
+  @media (max-width: 620px) { .tiles { grid-template-columns: 1fr; } .panel { padding: 14px; } .row > .fix { flex: 1 1 140px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Text Watermark Lab</h1>
+  <p class="lede">How language models hide a signature in their word choices, and what the evidence looks like when you have the key. <a href="/image">Image lab</a> · <a href="/video">Video lab</a> · <a href="/audio">Audio lab</a></p>
+
+  <div class="scope">
+    <b>What this page can and cannot show.</b> It runs the two published watermark algorithms with a key you can see, so you can make a marked text and watch a detector find it. It cannot tell you whether a text came from Gemini, Claude or ChatGPT: they use the same idea with private keys, and none of them offers a public text detector.
+  </div>
+
+  <section class="panel" aria-labelledby="h-make">
+    <h2 id="h-make">1. Make a sample</h2>
+    <p class="sub">A small model on this computer (<span id="model-name">SmolLM2-360M</span>) writes a reply. The watermark only changes how each next word is picked.</p>
+    <label for="prompt">Prompt</label>
+    <input type="text" id="prompt" value="Explain why the sky is blue and why sunsets are red." maxlength="2000">
+    <div class="row">
+      <div>
+        <span class="lab" id="lab-scheme">Watermark</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lab-scheme">
+          <label><input type="radio" name="scheme" value="none">None</label>
+          <label><input type="radio" name="scheme" value="greenlist" checked>Green-list</label>
+          <label><input type="radio" name="scheme" value="tournament">Tournament</label>
+        </div>
+      </div>
+      <div class="fix">
+        <label for="wkey">Key used to write</label>
+        <input type="text" class="key" id="wkey" value="demo-key" maxlength="200">
+      </div>
+      <button class="btn" id="gen">Generate</button>
+      <button class="btn ghost hidden" id="stop">Stop</button>
+    </div>
+    <p class="note" id="gen-note" style="margin:10px 0 0">About 200 tokens, 5 to 10 seconds. The text appears in the box below and is analyzed when it finishes.</p>
+    <div class="err hidden" id="gen-err" role="alert"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-read">
+    <h2 id="h-read">2. Paste text and look for a watermark</h2>
+    <p class="sub">Paste anything, or edit a generated sample: delete a sentence, reword a few lines, and watch the score move.</p>
+    <label for="text">Text to check</label>
+    <textarea id="text" spellcheck="false" placeholder="Paste a paragraph here, or generate one above."></textarea>
+    <div class="row">
+      <div class="fix">
+        <label for="rkey">Key used to read</label>
+        <input type="text" class="key" id="rkey" value="demo-key" maxlength="200">
+      </div>
+      <button class="btn" id="run">Analyze</button>
+      <button class="btn ghost" id="ex-plain">Load an unmarked example</button>
+      <button class="btn ghost" id="ex-hidden">Insert hidden characters</button>
+    </div>
+    <div class="err hidden" id="run-err" role="alert"></div>
+
+    <div id="result" class="hidden">
+      <div id="verdict" class="verdict" role="status"></div>
+      <h3>Three checks, select one to see its evidence</h3>
+      <div class="tiles" role="tablist" id="tiles"></div>
+      <div id="view"></div>
+    </div>
+  </section>
+
+  <section class="panel how" aria-labelledby="h-how">
+    <h2 id="h-how">How the marks work</h2>
+    <p><b>Green-list</b> (Kirchenbauer et al., 2023). Before each word, the key and the previous token split the vocabulary into a green quarter and a red three quarters. Green tokens get a small bonus, so the model picks them more often. The detector redoes the split for every token and counts greens: unmarked text hits green 25% of the time, marked text far more.</p>
+    <p><b>Tournament</b> (SynthID-Text, Google DeepMind, 2024; the family Gemini and Claude use). The key and the previous four tokens give every candidate 30 random bits. Candidates drawn from the model play a knockout tournament where the higher bit wins each round. Probabilities stay the same on average, but the winners carry more 1-bits than chance. The detector averages those bits: 0.5 means no mark.</p>
+    <p><b>Hidden characters.</b> Zero-width and look-alike space characters. This is the only check that needs no key, and the easiest mark to remove. The three large vendors say their watermarks do not use it.</p>
+    <p class="note">Both statistical checks need the same key and the same tokenizer that wrote the text. With a different key the pattern is indistinguishable from chance: change "Key used to read" to see it. More detail and sources: <code>docs/text-watermarking.md</code>.</p>
+  </section>
+</main>
+<div id="tip" class="hidden" role="tooltip"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+function s(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const fmt = (x, d = 1) => Number(x).toFixed(d);
+const pct = (x) => (100 * x).toFixed(0) + "%";
+
+/* How rare a one-sided z-score is in unmarked text, as the N of "1 in N". */
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+function oneIn(z, p) {
+  const lg = p > 1e-300 ? -Math.log10(p) : (z * z) / 2 / Math.LN10 + Math.log10(z * Math.sqrt(2 * Math.PI));
+  if (lg < 3) return Math.max(2, Math.round(10 ** lg)).toLocaleString("en-US");
+  if (lg < 6) return (Math.round(10 ** lg / 1000) * 1000).toLocaleString("en-US");
+  if (lg < 9) return Number((10 ** (lg - 6)).toPrecision(2)) + " million";
+  if (lg < 12) return Number((10 ** (lg - 9)).toPrecision(2)) + " billion";
+  return "10" + String(Math.round(lg)).split("").map((d) => SUP[d]).join("");
+}
+
+/* ---------- tooltip ---------- */
+const tip = $("#tip");
+function showTip(ev, lines) {
+  tip.replaceChildren();
+  lines.forEach(([strong, rest], i) => {
+    if (i) tip.append(h("br"));
+    if (strong) tip.append(h("b", { text: strong }));
+    if (rest) tip.append(h("span", { class: "k", text: (strong ? " " : "") + rest }));
+  });
+  tip.classList.remove("hidden");
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 16;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 10;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 12;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => tip.classList.add("hidden");
+
+/* ---------- state ---------- */
+let R = null;          // last analysis
+let view = "greenlist";
+const CHECKS = [
+  { id: "greenlist", name: "Green-list" },
+  { id: "tournament", name: "Tournament" },
+  { id: "hidden", name: "Hidden characters" },
+];
+const STATE = { detected: "Watermark found", weak: "Hint only", none: "Not found", too_short: "Too short to tell" };
+
+/* ---------- analyze ---------- */
+async function analyze(auto) {
+  const text = $("#text").value;
+  $("#run-err").classList.add("hidden");
+  if (!text.trim()) { $("#result").classList.add("hidden"); return; }
+  try {
+    const res = await fetch("/api/text/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, key: $("#rkey").value || "demo-key" }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Analysis failed (" + res.status + ").");
+    R = await res.json();
+    render(auto === true);
+  } catch (e) {
+    $("#run-err").textContent = e.message; $("#run-err").classList.remove("hidden");
+  }
+}
+
+function render(auto) {
+  $("#result").classList.remove("hidden");
+  const gl = R.greenlist, tn = R.tournament, hd = R.hidden;
+  const found = [gl, tn].filter((r) => r.verdict === "detected");
+  const v = $("#verdict");
+  let cls = "none", title, body;
+  if (found.length) {
+    const which = gl.verdict === "detected" && tn.verdict === "detected" ? "Both watermarks"
+      : gl.verdict === "detected" ? "Green-list watermark" : "Tournament watermark";
+    const best = gl.z > tn.z ? gl : tn;
+    cls = "detected"; title = which + " found for this key";
+    body = "Score z = " + fmt(best.z) + ". By chance, about 1 in " + oneIn(best.z, best.p) + " texts with no watermark would score this high.";
+  } else if (gl.verdict === "weak" || tn.verdict === "weak") {
+    cls = "weak"; title = "A hint, not enough to call";
+    body = "The score is above chance but under the detection line of z = " + R.detect_z + ". Longer text would settle it.";
+  } else if (gl.verdict === "too_short" && tn.verdict === "too_short") {
+    cls = "too_short"; title = "Too short to tell";
+    body = "Only " + R.n_tokens + " tokens. Even a real watermark rarely shows in fewer than about " + R.min_tokens + ".";
+  } else {
+    title = "No watermark found for this key";
+    body = "The word choices look like chance for the key \"" + R.key + "\". That rules out this key only; it says nothing about who wrote the text.";
+  }
+  if (hd.invisible) body += " The text also contains " + hd.invisible + " invisible character" + (hd.invisible > 1 ? "s" : "") + ".";
+  v.className = "verdict v-" + cls;
+  v.replaceChildren(h("h2", { text: title }), h("p", { text: body }));
+
+  if (auto) {   // a new text: open the check that has something to show
+    if (found.length) view = gl.verdict === "detected" && gl.z >= tn.z ? "greenlist" : tn.verdict === "detected" ? "tournament" : "greenlist";
+    else if (hd.invisible) view = "hidden";
+    else if (view === "hidden") view = "greenlist";
+  }
+  renderTiles(); renderView();
+}
+
+function renderTiles() {
+  const box = $("#tiles"); box.replaceChildren();
+  for (const c of CHECKS) {
+    let state, num, cls = "";
+    if (c.id === "hidden") {
+      const n = R.hidden.invisible, sp = R.hidden.spaces;
+      state = n ? n + " invisible" : "None found"; cls = n ? "s-detected" : "";
+      num = sp ? sp + " unusual space" + (sp > 1 ? "s" : "") : "no key needed";
+    } else {
+      const r = R[c.id];
+      state = STATE[r.verdict]; cls = "s-" + r.verdict;
+      num = "z = " + fmt(r.z) + " on " + r.scored + " tokens";
+    }
+    const b = h("button", { class: "tile " + cls, role: "tab", "aria-selected": String(view === c.id), "aria-controls": "view" },
+      h("div", { class: "name", text: c.name }), h("div", { class: "state", text: state }), h("div", { class: "num", text: num }));
+    b.addEventListener("click", () => { view = c.id; renderTiles(); renderView(); });
+    box.append(b);
+  }
+}
+
+/* ---------- token text ---------- */
+function tokenBox(kind) {
+  const box = h("div", { class: "tokens" });
+  const flagged = new Map(R.hidden.items.map((it) => [parseInt(it.codepoint.slice(2), 16), it]));
+  R.tokens.forEach((t, i) => {
+    if (!t.t) return;
+    const sp = h("span", { class: "tok" });
+    if (kind === "hidden") {
+      let buf = "";
+      for (const ch of t.t) {
+        const it = flagged.get(ch.codePointAt(0));
+        if (!it) { buf += ch; continue; }
+        if (buf) { sp.append(buf); buf = ""; }
+        const badge = h("span", { class: "inv" + (it.kind === "space" ? " sp" : ""), text: it.codepoint });
+        badge.addEventListener("pointermove", (ev) => { ev.stopPropagation(); showTip(ev, [[it.name, it.codepoint], ["", it.note || (it.kind === "space" ? "Looks like a space." : "Draws nothing on screen.")]]); });
+        badge.addEventListener("pointerleave", hideTip);
+        sp.append(badge);
+      }
+      if (buf) sp.append(buf);
+      sp.classList.remove("tok");
+    } else {
+      sp.textContent = t.t;
+      const val = kind === "greenlist" ? t.gl : t.tn;
+      if (val == null) sp.classList.add("na");
+      else if (kind === "greenlist") sp.classList.add(val ? "g1" : "g0");
+      else {
+        const d = val - 0.5, a = Math.min(1, Math.abs(d) / 0.25);
+        sp.style.background = "color-mix(in srgb, var(" + (d >= 0 ? "--pos" : "--neg") + ") " + Math.round(a * 48) + "%, transparent)";
+      }
+      sp.addEventListener("pointermove", (ev) => showTip(ev, tokenTip(kind, t, i)));
+      sp.addEventListener("pointerleave", hideTip);
+    }
+    box.append(sp);
+  });
+  if (R.tail) box.append(R.tail);
+  return box;
+}
+function tokenTip(kind, t, i) {
+  const head = [JSON.stringify(t.t), "token #" + (i + 1) + ", id " + t.id];
+  if (kind === "greenlist") {
+    if (t.gl == null) return [head, ["", i === 0 ? "Not scored: no token before it to seed the split." : "Not scored: this pair of tokens already appeared."]];
+    return [head, [t.gl ? "Green" : "Red", "after " + JSON.stringify(R.tokens[i - 1].t)]];
+  }
+  if (t.tn == null) return [head, ["", i < R.tournament.params.context ? "Not scored: needs 4 tokens before it." : "Not scored: the 4 tokens before it already appeared."]];
+  const L = R.tournament.params.layers;
+  return [head, [Math.round(t.tn * L) + " of " + L, "g-values are 1 (chance: " + L / 2 + ")"]];
+}
+
+/* ---------- charts ---------- */
+function runningZ(kind) {
+  const pts = [];
+  let n = 0, sum = 0;
+  const L = R.tournament.params.layers, g = R.greenlist.params.gamma;
+  R.tokens.forEach((t, i) => {
+    const v = kind === "greenlist" ? t.gl : t.tn;
+    if (v == null) return;
+    n++; sum += v;
+    const z = kind === "greenlist" ? (sum - g * n) / Math.sqrt(g * (1 - g) * n) : (sum / n - 0.5) * 2 * Math.sqrt(n * L);
+    pts.push({ n, z, tok: t.t, i });
+  });
+  return pts;
+}
+function niceTicks(lo, hi, count) {
+  const span = hi - lo, raw = span / count, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Math.round(v * 1e6) / 1e6);
+  return out;
+}
+
+/* Score building up along the text: line + threshold + crosshair. */
+function lineChart(pts) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, wrap.clientWidth || $("#view").clientWidth || 800), H = 220, m = { l: 34, r: 78, t: 14, b: 34 };
+  const zs = pts.map((p) => p.z), N = pts.length;
+  const lo = Math.min(-2, Math.floor(Math.min(...zs) - 0.5)), hi = Math.max(6, Math.ceil(Math.max(...zs) + 1));
+  const x = (n) => m.l + ((n - 1) / Math.max(1, N - 1)) * (W - m.l - m.r), y = (z) => m.t + ((hi - z) / (hi - lo)) * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+    "aria-label": "Detection score after each token. Final score " + fmt(zs[N - 1]) + ", detection line at " + R.detect_z + "." });
+  for (const t of niceTicks(lo, hi, 5)) {
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: t === 0 ? "var(--muted)" : "var(--grid)", "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, t));
+  }
+  for (const t of niceTicks(1, N, 6)) if (t >= 1) svg.append(s("text", { x: x(t), y: H - m.b + 15, "text-anchor": "middle" }, t));
+  svg.append(s("text", { x: m.l, y: H - 4 }, "tokens scored, in reading order"));
+  const ty = y(R.detect_z);
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: ty, y2: ty, stroke: "var(--ai)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  svg.append(s("text", { x: W - m.r + 6, y: ty + 4, style: "fill:var(--ai)" }, "detected ≥ " + R.detect_z));
+  svg.append(s("path", { d: pts.map((p, i) => (i ? "L" : "M") + x(p.n).toFixed(1) + " " + y(p.z).toFixed(1)).join(""),
+    fill: "none", stroke: "var(--series)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  const last = pts[N - 1];
+  svg.append(s("circle", { cx: x(last.n), cy: y(last.z), r: 4.5, fill: "var(--series)", stroke: "var(--panel)", "stroke-width": 2 }));
+  const ly = Math.abs(y(last.z) - ty) < 14 ? y(last.z) + (last.z >= R.detect_z ? -12 : 16) : y(last.z) + 4;
+  svg.append(s("text", { x: W - m.r + 8, y: ly, class: "strong" }, "z = " + fmt(last.z)));
+  const hair = s("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1, visibility: "hidden" });
+  const dot = s("circle", { r: 4, fill: "var(--series)", stroke: "var(--panel)", "stroke-width": 2, visibility: "hidden" });
+  const hit = s("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: "transparent" });
+  hit.addEventListener("pointermove", (ev) => {
+    const box = svg.getBoundingClientRect(), px = (ev.clientX - box.left) * (W / box.width);
+    const idx = Math.max(0, Math.min(N - 1, Math.round(((px - m.l) / (W - m.l - m.r)) * (N - 1))));
+    const p = pts[idx];
+    hair.setAttribute("x1", x(p.n)); hair.setAttribute("x2", x(p.n)); hair.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", x(p.n)); dot.setAttribute("cy", y(p.z)); dot.setAttribute("visibility", "visible");
+    showTip(ev, [["z = " + fmt(p.z, 2), "after " + p.n + " scored tokens"], ["", "last token " + JSON.stringify(p.tok)]]);
+  });
+  hit.addEventListener("pointerleave", () => { hair.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); });
+  svg.append(hair, dot, hit);
+  wrap.append(svg);
+  return wrap;
+}
+
+/* Where this text's score sits against the bell curve of unmarked text. */
+function bellChart(z) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, $("#view").clientWidth || 800), H = 118, m = { l: 12, r: 12, t: 30, b: 26 };
+  const lo = -5, hi = Math.max(8, Math.ceil(z + 2)), zc = Math.max(lo, z);
+  const x = (v) => m.l + ((v - lo) / (hi - lo)) * (W - m.l - m.r), base = H - m.b, top = m.t + 6;
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+    "aria-label": "This text scores z = " + fmt(z) + ". Unmarked text clusters around 0; the detection line is " + R.detect_z + "." });
+  let d = "M" + x(lo) + " " + base;
+  for (let v = lo; v <= Math.min(hi, 5); v += 0.1) d += "L" + x(v).toFixed(1) + " " + (base - Math.exp(-v * v / 2) * (base - top)).toFixed(1);
+  d += "L" + x(Math.min(hi, 5)) + " " + base + "Z";
+  svg.append(s("path", { d, fill: "var(--null)" }));
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: base, y2: base, stroke: "var(--muted)", "stroke-width": 1 }));
+  for (const t of niceTicks(lo, hi, 8)) svg.append(s("text", { x: x(t), y: base + 15, "text-anchor": "middle" }, t));
+  svg.append(s("text", { x: x(0), y: top - 8, "text-anchor": "middle" }, "text with no watermark"));
+  const tx = x(R.detect_z);
+  svg.append(s("line", { x1: tx, x2: tx, y1: top + 14, y2: base, stroke: "var(--ai)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  const mx = x(zc);
+  svg.append(s("line", { x1: mx, x2: mx, y1: top + 2, y2: base, stroke: "var(--series)", "stroke-width": 2 }));
+  svg.append(s("circle", { cx: mx, cy: top + 2, r: 5, fill: "var(--series)", stroke: "var(--panel)", "stroke-width": 2 }));
+  const right = mx > W * 0.6;
+  svg.append(s("text", { x: mx + (right ? -10 : 10), y: top + 6, "text-anchor": right ? "end" : "start", class: "strong" }, "this text, z = " + fmt(z)));
+  wrap.append(svg);
+  return wrap;
+}
+
+/* Tournament only: mean g-value per layer against the chance band. */
+function layerChart(tn) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, $("#view").clientWidth || 800), H = 210, m = { l: 38, r: 96, t: 12, b: 34 };
+  const v = tn.layer_means, N = v.length, band = 2 * tn.layer_sd;
+  const lo = Math.min(0.5 - band - 0.02, Math.min(...v) - 0.02), hi = Math.max(0.5 + band + 0.02, Math.max(...v) + 0.02);
+  const step = (W - m.l - m.r) / N, bw = Math.max(3, step - 2);
+  const y = (g) => m.t + ((hi - g) / (hi - lo)) * (H - m.t - m.b);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+    "aria-label": "Average g-value in each of " + N + " tournament layers, against a chance level of 0.5." });
+  svg.append(s("rect", { x: m.l, width: W - m.l - m.r, y: y(0.5 + band), height: y(0.5 - band) - y(0.5 + band), fill: "var(--null)", opacity: .55 }));
+  svg.append(s("text", { x: W - m.r + 6, y: y(0.5 + band) + 11 }, "chance range"));
+  for (const t of niceTicks(lo, hi, 5)) {
+    svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), stroke: "var(--grid)", "stroke-width": 1 }));
+    svg.append(s("text", { x: m.l - 6, y: y(t) + 4, "text-anchor": "end" }, t.toFixed(2)));
+  }
+  svg.append(s("line", { x1: m.l, x2: W - m.r, y1: y(0.5), y2: y(0.5), stroke: "var(--muted)", "stroke-width": 1 }));
+  svg.append(s("text", { x: W - m.r + 6, y: y(0.5) + 4 }, "0.5 = no mark"));
+  v.forEach((g, i) => {
+    const up = g >= 0.5, y0 = y(0.5), y1 = y(g), bx = m.l + i * step + 1, hgt = Math.max(1, Math.abs(y1 - y0)), r = Math.min(3, hgt, bw / 2);
+    const top = Math.min(y0, y1);
+    const dpath = up
+      ? `M${bx} ${y0}V${top + r}Q${bx} ${top} ${bx + r} ${top}H${bx + bw - r}Q${bx + bw} ${top} ${bx + bw} ${top + r}V${y0}Z`
+      : `M${bx} ${y0}V${y1 - r}Q${bx} ${y1} ${bx + r} ${y1}H${bx + bw - r}Q${bx + bw} ${y1} ${bx + bw} ${y1 - r}V${y0}Z`;
+    const bar = s("path", { d: dpath, fill: up ? "var(--pos)" : "var(--neg)" });
+    const hit = s("rect", { x: m.l + i * step, y: m.t, width: step, height: H - m.t - m.b, fill: "transparent" });
+    hit.addEventListener("pointermove", (ev) => { bar.setAttribute("opacity", .7); showTip(ev, [[g.toFixed(3), "mean g-value, layer " + (i + 1)], ["", (g >= 0.5 ? "+" : "") + ((g - 0.5) / tn.layer_sd).toFixed(1) + " standard deviations from chance"]]); });
+    hit.addEventListener("pointerleave", () => { bar.removeAttribute("opacity"); hideTip(); });
+    svg.append(bar, hit);
+    if (i === 0 || (i + 1) % 5 === 0) svg.append(s("text", { x: bx + bw / 2, y: H - m.b + 15, "text-anchor": "middle" }, i + 1));
+  });
+  svg.append(s("text", { x: m.l, y: H - 4 }, "tournament layer (round)"));
+  wrap.append(svg);
+  return wrap;
+}
+
+/* Green-list only: share of green tokens against the 25% chance mark. */
+function shareBar(gl) {
+  const wrap = h("div", { class: "chart" });
+  const W = Math.max(300, $("#view").clientWidth || 800), H = 62, m = { l: 0, r: 0 }, by = 24, bh = 16;
+  const x = (f) => m.l + f * (W - m.l - m.r);
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+    "aria-label": pct(gl.rate) + " of scored tokens are green; chance is " + pct(gl.chance_rate) + "." });
+  svg.append(s("rect", { x: x(0), y: by, width: x(1) - x(0), height: bh, rx: 4, fill: "color-mix(in srgb, var(--neg) 30%, transparent)" }));
+  svg.append(s("rect", { x: x(0), y: by, width: Math.max(2, x(gl.rate) - x(0) - 2), height: bh, rx: 4, fill: "var(--pos)" }));
+  const cx = x(gl.chance_rate);
+  svg.append(s("line", { x1: cx, x2: cx, y1: by - 6, y2: by + bh + 6, stroke: "var(--ink)", "stroke-width": 2 }));
+  svg.append(s("text", { x: cx, y: by - 10, "text-anchor": "middle" }, "chance " + pct(gl.chance_rate)));
+  const near = Math.abs(gl.rate - gl.chance_rate) < 0.12;
+  svg.append(s("text", { x: Math.max(40, x(gl.rate)), y: by + bh + (near ? 18 : 16), "text-anchor": "end", class: "strong" }, pct(gl.rate) + " green"));
+  svg.append(s("text", { x: W, y: by + bh + 16, "text-anchor": "end" }, "red"));
+  wrap.append(svg);
+  return wrap;
+}
+
+function stat(big, small) { return h("div", { class: "stat" }, h("b", { text: big }), h("span", { text: small })); }
+
+/* ---------- views ---------- */
+function renderView() {
+  hideTip();
+  const box = $("#view"); box.replaceChildren();
+  if (view === "hidden") return hiddenView(box);
+  const r = R[view], isGL = view === "greenlist";
+  box.append(h("h3", { text: "The text, token by token" }));
+  box.append(isGL
+    ? h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:color-mix(in srgb, var(--pos) 34%, transparent)" }), "green-list token"),
+        h("span", {}, h("i", { style: "background:color-mix(in srgb, var(--neg) 26%, transparent);border-bottom:2px dotted var(--neg)" }), "red-list token (dotted underline)"),
+        h("span", { text: "grey text: not scored" }))
+    : h("div", { class: "legend" }, h("span", {}, h("i", { style: "background:color-mix(in srgb, var(--pos) 48%, transparent)" }), "more 1-bits than chance"),
+        h("span", {}, h("i", { style: "background:color-mix(in srgb, var(--neg) 48%, transparent)" }), "fewer"),
+        h("span", { text: "stronger colour = further from chance; grey text: not scored" })));
+  box.append(tokenBox(view));
+  if (!r.scored) { box.append(h("p", { class: "cap", text: "Nothing to score yet: the text is too short." })); return; }
+
+  box.append(h("h3", { text: "The count" }));
+  if (isGL) {
+    box.append(h("div", { class: "stats" },
+      stat(r.hits + " of " + r.scored, "scored tokens are green"),
+      stat(fmt(r.expected, 0), "expected by chance (" + pct(r.chance_rate) + ")"),
+      stat("z = " + fmt(r.z), "standard deviations above chance"),
+      stat(r.z > 0.5 ? "1 in " + oneIn(r.z, r.p) : "ordinary", r.z > 0.5 ? "unmarked texts score this high by chance" : "for text with no watermark")));
+    box.append(shareBar(r));
+  } else {
+    box.append(h("div", { class: "stats" },
+      stat(r.mean.toFixed(3), "average g-value (chance: 0.500)"),
+      stat((r.scored * r.params.layers).toLocaleString("en-US"), "bits checked: " + r.scored + " tokens × " + r.params.layers + " layers"),
+      stat("z = " + fmt(r.z), "standard deviations above chance"),
+      stat(r.z > 0.5 ? "1 in " + oneIn(r.z, r.p) : "ordinary", r.z > 0.5 ? "unmarked texts score this high by chance" : "for text with no watermark")));
+  }
+
+  box.append(h("h3", { text: "Where this score sits" }));
+  box.append(bellChart(r.z));
+  box.append(h("p", { class: "cap", text: "The grey hump is where text with no watermark (or the wrong key) lands. The dashed line is the detection threshold." }));
+
+  const pts = runningZ(view);
+  if (pts.length > 1) {
+    box.append(h("h3", { text: "How the evidence builds up" }));
+    box.append(lineChart(pts));
+    box.append(h("p", { class: "cap", text: "The score after each token. A watermark climbs steadily, because every marked token adds a little; unmarked text wanders around zero. This is why short passages cannot be checked." }));
+  }
+  if (!isGL) {
+    box.append(h("h3", { text: "Signal by tournament layer" }));
+    box.append(layerChart(r));
+    box.append(h("p", { class: "cap", text: "Each bar is the average of one g-value across all scored tokens. Early rounds decide between many different candidates and carry the most signal; by the last rounds usually one candidate is left, so those bars fall back into the chance range." }));
+  }
+
+  const det = h("details", {}, h("summary", { text: "Show every token as a table" }));
+  const tb = h("tbody");
+  R.tokens.forEach((t, i) => {
+    const v = isGL ? t.gl : t.tn;
+    tb.append(h("tr", {}, h("td", { class: "num", text: i + 1 }), h("td", { class: "mono", text: JSON.stringify(t.t) }), h("td", { class: "num", text: t.id }),
+      h("td", { class: "num", text: v == null ? "not scored" : isGL ? (v ? "green" : "red") : Math.round(v * r.params.layers) + " / " + r.params.layers })));
+  });
+  det.append(h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "#" }), h("th", { text: "Token" }), h("th", { text: "Id" }),
+    h("th", { text: isGL ? "List" : "g-values that are 1" }))), tb)));
+  box.append(det);
+}
+
+function hiddenView(box) {
+  const hd = R.hidden;
+  box.append(h("h3", { text: "The text, with hidden characters shown" }));
+  box.append(h("div", { class: "legend" }, h("span", {}, h("span", { class: "inv", text: "U+200B" }), " draws nothing"),
+    h("span", {}, h("span", { class: "inv sp", text: "U+00A0" }), " looks like a normal space")));
+  box.append(tokenBox("hidden"));
+  if (!hd.items.length) {
+    box.append(h("p", { class: "cap", text: "No invisible or look-alike characters in this text." }));
+    return;
+  }
+  if (hd.tag_message) box.append(h("p", { class: "cap" }, "Tag characters spell a hidden message: ", h("code", { text: hd.tag_message })));
+  box.append(h("h3", { text: "What was found" }));
+  const tb = h("tbody");
+  for (const it of hd.items) tb.append(h("tr", {}, h("td", { class: "mono", text: it.codepoint }), h("td", { text: it.name }),
+    h("td", { text: it.kind === "space" ? "looks like a space" : "invisible" }), h("td", { class: "num", text: it.count }), h("td", { text: it.note })));
+  box.append(h("div", { class: "scroll" }, h("table", {}, h("thead", {}, h("tr", {}, h("th", { text: "Code" }), h("th", { text: "Name" }), h("th", { text: "Kind" }),
+    h("th", { text: "Count" }), h("th", { text: "Note" }))), tb)));
+  box.append(h("p", { class: "cap", text: "These show that the text carries something a reader cannot see. They do not show it is AI-written: copying from web pages, PDFs and chat apps leaves them too." }));
+}
+
+/* ---------- generate ---------- */
+let ctl = null;
+async function generate() {
+  const err = $("#gen-err"); err.classList.add("hidden");
+  const ta = $("#text"); ta.value = ""; $("#result").classList.add("hidden");
+  $("#gen").disabled = true; $("#stop").classList.remove("hidden");
+  ctl = new AbortController();
+  const key = $("#wkey").value || "demo-key";
+  try {
+    const res = await fetch("/api/text/generate", { method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal,
+      body: JSON.stringify({ prompt: $("#prompt").value, scheme: document.querySelector("input[name=scheme]:checked").value, key }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || "Generation failed (" + res.status + ").");
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const msg = JSON.parse(buf.slice(0, nl)); buf = buf.slice(nl + 1);
+        if (msg.error) throw new Error(msg.error);
+        if (msg.t) { ta.value += msg.t; ta.scrollTop = ta.scrollHeight; }
+      }
+    }
+  } catch (e) {
+    if (e.name !== "AbortError") { err.textContent = e.message; err.classList.remove("hidden"); }
+  } finally {
+    $("#gen").disabled = false; $("#stop").classList.add("hidden"); ctl = null;
+    if (ta.value.trim()) analyze(true);
+  }
+}
+
+const PLAIN = "The old lighthouse at the end of the harbour wall has not guided a ship in forty years, but the town still paints it every spring. Volunteers arrive with ladders and tins of white paint, and by evening the tower looks as it did when the keeper lived there with his family. Nobody quite remembers who started the custom. Some say it began as a way to keep the building from falling into the sea; others think it was simply an excuse for a picnic. Either way, the children who once carried brushes for their parents now bring children of their own, and the lamp room, long empty, fills for one afternoon with the smell of turpentine and the sound of people arguing about the best way to reach the railings.";
+
+$("#gen").addEventListener("click", generate);
+$("#stop").addEventListener("click", () => ctl && ctl.abort());
+$("#run").addEventListener("click", () => analyze(true));
+$("#prompt").addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("#gen").disabled) generate(); });
+$("#ex-plain").addEventListener("click", () => { $("#text").value = PLAIN; analyze(true); });
+$("#ex-hidden").addEventListener("click", () => {
+  const ta = $("#text");
+  if (!ta.value.trim()) ta.value = PLAIN;
+  let n = 0;
+  ta.value = ta.value.replace(/ /g, (sp) => (++n % 6 === 0 ? "​ " : n % 17 === 0 ? " " : sp));
+  view = "hidden"; analyze();
+});
+let timer = null;
+const later = () => { clearTimeout(timer); timer = setTimeout(() => analyze(), 350); };
+$("#text").addEventListener("input", later);
+$("#rkey").addEventListener("input", later);
+let rz = null;
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => R && renderView(), 150); });
+
+fetch("/api/text/status").then((r) => r.json()).then((st) => {
+  $("#model-name").textContent = st.model;
+  if (!st.model_ready) {
+    $("#gen").disabled = true;
+    $("#gen-note").textContent = "The model is not downloaded, so generation is off. Run: python scripts/download_text_model.py" +
+      (st.tokenizer_ready ? " (pasted text can still be analyzed)." : "");
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>
