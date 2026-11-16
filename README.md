@@ -255,3 +255,24 @@ tests/                      pytest suite and C2PA fixtures
 
 Test fixtures in `tests/fixtures` are derived from the c2pa-python project's
 public test files and signed with its public test certificate.
+
+## Deploying (public, behind a Cloudflare Tunnel)
+
+`deploy/ai-detector.service` runs the app on `127.0.0.1:18427` as a systemd service
+with CPU and memory caps. Install with:
+
+```bash
+uv venv .venv --python 3.12 && uv pip install --python .venv/bin/python -r requirements.txt
+python scripts/download_text_model.py
+echo "AIGC_WM_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')" | sudo tee /etc/ai-detector.env
+sudo chmod 600 /etc/ai-detector.env
+sudo cp deploy/ai-detector.service /etc/systemd/system/ && sudo systemctl enable --now ai-detector
+```
+
+Then add a public hostname in the Cloudflare tunnel pointing at `http://localhost:18427`.
+
+`app/limits.py` protects a public instance: per-IP rate limits (heavy routes 8/min, others
+240/min), at most 2 heavy jobs at once (extra requests get 503), and an upload-size check
+before the body is read. With `AIGC_TRUST_CF=1` the client IP comes from `CF-Connecting-IP`.
+Tune with `AIGC_RATE_HEAVY`, `AIGC_RATE_LIGHT`, `AIGC_MAX_HEAVY_JOBS`, `AIGC_MAX_BODY_MB`;
+`AIGC_LIMITS=off` disables it. Run a single worker, since the limiter state is in-process.

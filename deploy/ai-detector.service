@@ -1,0 +1,33 @@
+[Unit]
+Description=AI-generated content detector (ai-detector.ducdv.me)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/projects/ai-generator-content-detector
+# One worker on purpose: the rate limiter and the heavy-job cap are in-process state.
+ExecStart=/home/ubuntu/projects/ai-generator-content-detector/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 18427 --workers 1 --no-server-header
+EnvironmentFile=/etc/ai-detector.env
+Environment=AIGC_TRUST_CF=1
+Environment=AIGC_RATE_HEAVY=8/60
+Environment=AIGC_RATE_LIGHT=240/60
+Environment=AIGC_MAX_HEAVY_JOBS=2
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=3
+
+# Keep a runaway request from starving the other services on this VPS.
+Nice=10
+CPUQuota=250%
+MemoryHigh=3G
+MemoryMax=4G
+TasksMax=512
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

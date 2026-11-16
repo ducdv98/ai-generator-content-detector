@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from . import attacks, signing
 from .detectors import classifier, provenance, watermark
+from .limits import Limits
 from .report import build_report
 from .audio import codec as audio_codec
 from .audio import lab as audio_lab
@@ -35,6 +36,7 @@ Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 WEB = Path(__file__).resolve().parents[1] / "web"
 
 app = FastAPI(title="AI-generated content detector", version="0.1.0")
+app.add_middleware(Limits)
 
 
 async def _read(file: UploadFile) -> bytes:
