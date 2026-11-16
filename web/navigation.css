@@ -1,0 +1,65 @@
+/* Shared content-type navigation. Links work without JavaScript. */
+.mode-nav {
+  margin: 0 0 28px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.mode-nav__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+.mode-nav__brand {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.mode-nav__detector {
+  color: var(--accent);
+  font-size: .85rem;
+  text-underline-offset: 3px;
+}
+.mode-nav__detector[aria-current="page"] { font-weight: 700; }
+.mode-nav__title { margin: 0; font-size: 1rem; font-weight: 650; }
+.mode-nav__hint { margin: 2px 0 14px; color: var(--muted); font-size: .85rem; }
+.mode-nav__links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.mode-nav__link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+}
+.mode-nav__link:hover {
+  border-color: var(--accent);
+  background: var(--neutral-bg);
+}
+.mode-nav a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.mode-nav__name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.mode-nav__name svg { width: 22px; height: 22px; flex: none; }
+.mode-nav__description { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.mode-nav__action { margin-top: auto; padding-top: 4px; color: var(--accent); font-size: .78rem; font-weight: 650; }
+.mode-nav__link[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.mode-nav__link[aria-current="page"] .mode-nav__description,
+.mode-nav__link[aria-current="page"] .mode-nav__action { color: var(--accent-ink); }
+@media (max-width: 640px) {
+  .mode-nav { padding: 14px; }
+  .mode-nav__links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mode-nav__link { padding: 12px; }
+}

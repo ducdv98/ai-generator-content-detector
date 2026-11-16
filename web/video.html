@@ -116,11 +116,43 @@
   .how p { margin: 8px 0; max-width: 76ch; font-size: .95rem; }
   @media (max-width: 680px) { .tiles, .trio { grid-template-columns: 1fr; } .panel { padding: 14px; } th, td { padding: 6px 4px; font-size: .85rem; } }
 </style>
+<link rel="stylesheet" href="/navigation.css">
 </head>
 <body>
 <main>
+  <nav class="mode-nav" aria-label="Content type">
+    <div class="mode-nav__header">
+      <a class="mode-nav__brand" href="/">AI Content Detector</a>
+      <a class="mode-nav__detector" href="/">Image detector</a>
+    </div>
+    <p class="mode-nav__title">Choose a content type</p>
+    <p class="mode-nav__hint">Open a lab to create samples, inspect watermarks, and test edits.</p>
+    <div class="mode-nav__links">
+      <a class="mode-nav__link" href="/text">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h16M12 5v14M8 19h8"/></svg>Text</span>
+        <span class="mode-nav__description">Generate &amp; analyze text</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+      <a class="mode-nav__link" href="/image">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>Image</span>
+        <span class="mode-nav__description">Mark &amp; inspect images</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+      <a class="mode-nav__link" href="/video" aria-current="page">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3Z"/></svg>Video</span>
+        <span class="mode-nav__description">Inspect video frames</span>
+        <span class="mode-nav__action">Current lab</span>
+      </a>
+      <a class="mode-nav__link" href="/audio">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg>Audio</span>
+        <span class="mode-nav__description">Explore audio signals</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+    </div>
+  </nav>
+
   <h1>Video Watermark Lab</h1>
-  <p class="lede">How a video gets marked as AI-made, why compression is the real enemy, and what the evidence looks like frame by frame. <a href="/text">Text lab</a> · <a href="/image">Image lab</a> · <a href="/audio">Audio lab</a></p>
+  <p class="lede">How a video gets marked as AI-made, why compression is the real enemy, and what the evidence looks like frame by frame.</p>
 
   <div class="scope">
     <b>What this page can and cannot show.</b> It reads labels stored in the video file and a keyed watermark placed in every frame by this page. It cannot read the learned watermarks in real AI video, such as Google's SynthID in Veo clips: those need the vendor's own checker. It also ignores the sound track, which vendors watermark separately.

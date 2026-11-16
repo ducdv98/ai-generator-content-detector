@@ -78,11 +78,43 @@
   .scroll { overflow-x: auto; }
   @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } .panel { padding: 14px; } th, td { padding: 6px 4px; font-size: .85rem; } }
 </style>
+<link rel="stylesheet" href="/navigation.css">
 </head>
 <body>
 <main>
+  <nav class="mode-nav" aria-label="Content type">
+    <div class="mode-nav__header">
+      <a class="mode-nav__brand" href="/">AI Content Detector</a>
+      <a class="mode-nav__detector" href="/" aria-current="page">Image detector</a>
+    </div>
+    <p class="mode-nav__title">Choose a content type</p>
+    <p class="mode-nav__hint">Open a lab to create samples, inspect watermarks, and test edits.</p>
+    <div class="mode-nav__links">
+      <a class="mode-nav__link" href="/text">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h16M12 5v14M8 19h8"/></svg>Text</span>
+        <span class="mode-nav__description">Generate &amp; analyze text</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+      <a class="mode-nav__link" href="/image">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>Image</span>
+        <span class="mode-nav__description">Mark &amp; inspect images</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+      <a class="mode-nav__link" href="/video">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3Z"/></svg>Video</span>
+        <span class="mode-nav__description">Inspect video frames</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+      <a class="mode-nav__link" href="/audio">
+        <span class="mode-nav__name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg>Audio</span>
+        <span class="mode-nav__description">Explore audio signals</span>
+        <span class="mode-nav__action">Open lab <span aria-hidden="true">&rarr;</span></span>
+      </a>
+    </div>
+  </nav>
+
   <h1>AI Content Detector</h1>
-  <p class="lede">Checks an image the way social platforms do: what the file declares, which known watermarks it carries, and, if nothing else is found, what a classifier guesses. <a href="/text" style="color:var(--accent)">Text watermark lab</a> · <a href="/image" style="color:var(--accent)">Image watermark lab</a> · <a href="/video" style="color:var(--accent)">Video watermark lab</a> · <a href="/audio" style="color:var(--accent)">Audio watermark lab</a></p>
+  <p class="lede">Checks an image the way social platforms do: what the file declares, which known watermarks it carries, and, if nothing else is found, what a classifier guesses.</p>
 
   <div class="tabs" role="tablist">
     <button role="tab" id="tab-detect" aria-selected="true" aria-controls="p-detect">Detect</button>
